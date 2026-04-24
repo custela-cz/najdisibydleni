@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { BHeader } from "@/components/header";
 import { Icon, PropPhoto, bPage } from "@/components/shared";
-import { supabase, mapRowToListing } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
+import { mapRowToListing } from "@/lib/supabase/shared";
 
 export const revalidate = 30;
 
 async function fetchOverview() {
+  const supabase = await createClient();
   const [all, recent] = await Promise.all([
     supabase.from("properties").select("id,offer_type,property_type,price", { count: "exact" }).eq("status", "aktivni"),
     supabase.from("properties").select("*").order("created_at", { ascending: false }).limit(6),

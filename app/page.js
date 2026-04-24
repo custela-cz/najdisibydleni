@@ -4,11 +4,13 @@ import { B2Footer } from "@/components/footer";
 import { B2Card } from "@/components/cards";
 import SearchBar from "@/components/search-bar";
 import { Icon, PropPhoto, bPage } from "@/components/shared";
-import { supabase, mapRowToListing } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
+import { mapRowToListing } from "@/lib/supabase/shared";
 
 export const revalidate = 30;
 
 async function getLatest() {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("properties")
     .select("*")

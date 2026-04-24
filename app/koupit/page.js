@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { B2Header } from "@/components/header";
 import { B2MapRow } from "@/components/cards";
-import { Icon, PropPhoto, bPage } from "@/components/shared";
-import { supabase, mapRowToListing } from "@/lib/supabase";
+import LeafletMap from "@/components/leaflet-map";
+import { Icon, bPage } from "@/components/shared";
+import { createClient } from "@/lib/supabase/server";
+import { mapRowToListing } from "@/lib/supabase/shared";
 
 export const revalidate = 30;
 
@@ -11,7 +13,7 @@ const TYPE_TO_QUERY = {
   "dum-koupe": { offer: "prodej", ptype: "dum" },
   "pozemek-koupe": { offer: "prodej", ptype: "pozemek" },
   "chata-koupe": { offer: "prodej", ptype: "chata" },
-  "novostavba": { offer: "prodej", ptype: "novostavba" },
+  novostavba: { offer: "prodej", ptype: "novostavba" },
   "komercni-koupe": { offer: "prodej", ptype: "komercni" },
   "byt-najem": { offer: "pronajem", ptype: "byt" },
   "dum-najem": { offer: "pronajem", ptype: "dum" },
@@ -27,6 +29,7 @@ const PROPERTY_TYPE_LABEL = {
 };
 
 async function fetchListings(filters) {
+  const supabase = await createClient();
   let q = supabase.from("properties").select("*").eq("status", "aktivni");
   if (filters.offer) q = q.eq("offer_type", filters.offer);
   if (filters.ptype) q = q.eq("property_type", filters.ptype);
@@ -41,6 +44,33 @@ async function fetchListings(filters) {
     return [];
   }
   return (data || []).map(mapRowToListing);
+}
+
+function Chip({ label }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 16px",
+        background: "#fff",
+        borderRadius: 999,
+        border: "1px solid var(--b-line)",
+        fontSize: 13,
+      }}
+    >
+      <span style={{ fontWeight: 500, color: "var(--b-ink)" }}>{label}</span>
+    </div>
+  );
+}
+
+function fmtShort(n) {
+  if (!n) return "";
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} mil.`;
+  if (n >= 1_000) return `${(n / 1_000).toLocaleString("cs-CZ")} tis.`;
+  return n.toLocaleString("cs-CZ");
 }
 
 export default async function MapSearchPage({ searchParams }) {
@@ -68,14 +98,26 @@ export default async function MapSearchPage({ searchParams }) {
   });
 
   const titleLeft = ptype ? PROPERTY_TYPE_LABEL[ptype] : "Všechny nabídky";
-  const titleWhere = where ? ` v ${where}` : "";
   const isRent = offer === "pronajem";
+
+  const mapMarkers = listings
+    .filter((l) => l.latitude != null && l.longitude != null)
+    .map((l, i) => ({
+      id: l.id,
+      title: l.title,
+      place: l.place,
+      price: l.price,
+      rawPrice: l.rawPrice,
+      latitude: l.latitude,
+      longitude: l.longitude,
+      active: i === 0,
+    }));
 
   return (
     <div className="ab v-b" style={bPage}>
       <B2Header active="koupit" />
 
-      {/* Top filter bar — reflects current params */}
+      {/* Top filter bar */}
       <div style={{ borderBottom: "1px solid var(--b-line-2)", background: "var(--b-bg)" }}>
         <div
           style={{
@@ -153,7 +195,7 @@ export default async function MapSearchPage({ searchParams }) {
             }}
           >
             {titleLeft}
-            {titleWhere && (
+            {where && (
               <>
                 {" "}
                 <span style={{ fontStyle: "italic", color: "var(--b-accent)" }}>{where}</span>
@@ -162,18 +204,13 @@ export default async function MapSearchPage({ searchParams }) {
           </h1>
           <div style={{ fontSize: 14, color: "var(--b-muted)", marginTop: 6 }}>
             {isRent ? "Pronájmy" : "Prodeje"} · {listings.length} aktivních inzerátů
+            {mapMarkers.length > 0 && ` · ${mapMarkers.length} na mapě`}
           </div>
         </div>
       </div>
 
       {/* Results */}
-      <div
-        style={{
-          maxWidth: 1400,
-          margin: "0 auto",
-          padding: "0 24px 64px",
-        }}
-      >
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 24px 64px" }}>
         {listings.length === 0 ? (
           <div
             style={{
@@ -215,186 +252,46 @@ export default async function MapSearchPage({ searchParams }) {
             </Link>
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 20,
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {listings.slice(0, 10).map((l, i) => (
-                <B2MapRow
-                  key={l.id}
-                  l={l}
-                  active={i === 0}
-                  seller={l.seller_kind || "owner"}
-                />
+                <B2MapRow key={l.id} l={l} active={i === 0} seller={l.seller_kind || "owner"} />
               ))}
             </div>
 
-            <MapPanel listings={listings.slice(0, 10)} />
+            <div
+              style={{
+                position: "sticky",
+                top: 20,
+                alignSelf: "flex-start",
+                height: 900,
+              }}
+            >
+              {mapMarkers.length > 0 ? (
+                <LeafletMap markers={mapMarkers} height={900} />
+              ) : (
+                <div
+                  style={{
+                    height: 900,
+                    background: "var(--b-bg)",
+                    border: "1px dashed var(--b-line)",
+                    borderRadius: 20,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 40,
+                    textAlign: "center",
+                    fontSize: 14,
+                    color: "var(--b-muted)",
+                  }}
+                >
+                  Pro tyto výsledky nejsou k dispozici geosouřadnice — zkuste filtrovat podle města, kde máme více záznamů s geolokací.
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function Chip({ label }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 16px",
-        background: "#fff",
-        borderRadius: 999,
-        border: "1px solid var(--b-line)",
-        fontSize: 13,
-      }}
-    >
-      <span style={{ fontWeight: 500, color: "var(--b-ink)" }}>{label}</span>
-    </div>
-  );
-}
-
-function fmtShort(n) {
-  if (!n) return "";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} mil.`;
-  if (n >= 1_000) return `${(n / 1_000).toLocaleString("cs-CZ")} tis.`;
-  return n.toLocaleString("cs-CZ");
-}
-
-function MapPanel({ listings }) {
-  return (
-    <div
-      style={{
-        position: "sticky",
-        top: 20,
-        alignSelf: "flex-start",
-        height: 900,
-        borderRadius: 20,
-        overflow: "hidden",
-        border: "1px solid var(--b-line)",
-        background: "#EFEBE1",
-        position: "relative",
-      }}
-    >
-      <svg
-        viewBox="0 0 800 900"
-        width="100%"
-        height="100%"
-        preserveAspectRatio="xMidYMid slice"
-        style={{ position: "absolute", inset: 0 }}
-      >
-        <rect width="800" height="900" fill="#EFEBE1" />
-        <rect x="40" y="60" width="160" height="140" fill="#E3DDCC" rx="6" />
-        <rect x="220" y="60" width="130" height="140" fill="#E3DDCC" rx="6" />
-        <rect x="370" y="60" width="200" height="220" fill="#E3DDCC" rx="6" />
-        <rect x="590" y="60" width="170" height="180" fill="#E3DDCC" rx="6" />
-        <rect x="40" y="220" width="170" height="180" fill="#E3DDCC" rx="6" />
-        <rect x="230" y="220" width="120" height="180" fill="#E3DDCC" rx="6" />
-        <rect x="370" y="300" width="200" height="140" fill="#C9D8B8" rx="8" />
-        <circle cx="470" cy="370" r="14" fill="#A5BE8B" />
-        <circle cx="510" cy="400" r="10" fill="#A5BE8B" />
-        <rect x="40" y="420" width="310" height="200" fill="#E3DDCC" rx="6" />
-        <rect x="370" y="460" width="200" height="160" fill="#E3DDCC" rx="6" />
-        <rect x="590" y="260" width="170" height="360" fill="#E3DDCC" rx="6" />
-        <rect x="40" y="640" width="170" height="220" fill="#E3DDCC" rx="6" />
-        <rect x="230" y="640" width="330" height="120" fill="#E3DDCC" rx="6" />
-        <rect x="230" y="780" width="330" height="80" fill="#E3DDCC" rx="6" />
-        <rect x="590" y="640" width="170" height="220" fill="#E3DDCC" rx="6" />
-        <path
-          d="M-20 440 Q150 420 300 460 T600 480 Q720 490 820 470 L820 540 Q720 555 600 540 T300 520 Q150 490 -20 510 Z"
-          fill="#B7CDD6"
-        />
-      </svg>
-
-      {listings.map((l, i) => {
-        const positions = [
-          { x: 290, y: 140 }, { x: 120, y: 140 }, { x: 470, y: 180 }, { x: 670, y: 150 },
-          { x: 130, y: 320 }, { x: 300, y: 350 }, { x: 460, y: 560 }, { x: 290, y: 720 },
-          { x: 660, y: 500 }, { x: 100, y: 760 },
-        ];
-        const p = positions[i] || positions[0];
-        const active = i === 0;
-        const priceLabel = l.rawPrice >= 1_000_000
-          ? `${(l.rawPrice / 1_000_000).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} mil.`
-          : `${Math.round(l.rawPrice / 1000)} tis.`;
-        return (
-          <Link
-            key={l.id}
-            href={`/inzerat/${l.id}`}
-            style={{
-              position: "absolute",
-              left: `${p.x / 8}%`,
-              top: `${p.y / 9}%`,
-              transform: "translate(-50%,-100%)",
-              background: active ? "var(--b-primary)" : "#fff",
-              color: active ? "var(--b-cream)" : "var(--b-ink)",
-              padding: "6px 12px",
-              borderRadius: 999,
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: "var(--b-font)",
-              boxShadow: active ? "0 10px 24px rgba(0,0,0,.2)" : "0 2px 6px rgba(0,0,0,.12)",
-              border: active ? "none" : "1px solid var(--b-line)",
-            }}
-          >
-            {priceLabel}
-          </Link>
-        );
-      })}
-
-      {listings[0] && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 20,
-            left: 20,
-            width: 300,
-            background: "#fff",
-            borderRadius: 16,
-            padding: 12,
-            boxShadow: "var(--b-shadow)",
-            display: "flex",
-            gap: 12,
-          }}
-        >
-          <PropPhoto seed={listings[0].seed} style={{ width: 88, height: 80, borderRadius: 10, flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontFamily: "var(--b-display)",
-                fontSize: 15,
-                fontWeight: 500,
-                letterSpacing: -0.2,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {listings[0].title}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--b-muted)", marginTop: 2 }}>
-              {listings[0].area} m² · {listings[0].disp}
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--b-display)",
-                fontSize: 16,
-                fontWeight: 500,
-                color: "var(--b-primary)",
-                marginTop: 4,
-              }}
-            >
-              {listings[0].price}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

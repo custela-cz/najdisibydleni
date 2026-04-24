@@ -3,8 +3,27 @@
 import Link from "next/link";
 import { Icon, PropPhoto, fmt, sellerBadge } from "./shared";
 
+function Photo({ listing, style, variant = "card" }) {
+  if (listing.main_image_url) {
+    return (
+      <img
+        src={listing.main_image_url}
+        alt={listing.title}
+        style={{
+          ...style,
+          objectFit: "cover",
+          display: "block",
+          width: "100%",
+        }}
+      />
+    );
+  }
+  return <PropPhoto seed={listing.seed} style={style} />;
+}
+
 export const B2Card = ({ l, seller = "owner" }) => {
-  const s = sellerBadge[seller];
+  const kind = l.seller_kind || seller;
+  const s = sellerBadge[kind] || sellerBadge.owner;
   return (
     <article
       style={{
@@ -15,7 +34,7 @@ export const B2Card = ({ l, seller = "owner" }) => {
       }}
     >
       <div style={{ position: "relative", padding: 10 }}>
-        <PropPhoto seed={l.seed} style={{ aspectRatio: "4/3", borderRadius: 16 }} />
+        <Photo listing={l} style={{ aspectRatio: "4/3", borderRadius: 16 }} />
         <div
           style={{
             position: "absolute",
@@ -71,7 +90,12 @@ export const B2Card = ({ l, seller = "owner" }) => {
           {l.title}
         </h3>
         <div style={{ fontSize: 13, color: "var(--b-ink-2)", display: "flex", gap: 14 }}>
-          <span>{l.area} m²</span>·<span>{l.disp}</span>·<span>cihla</span>
+          <span>{l.area} m²</span>·<span>{l.disp}</span>
+          {l.condition_note && (
+            <>
+              ·<span>{l.condition_note}</span>
+            </>
+          )}
         </div>
         <div
           style={{
@@ -115,7 +139,8 @@ export const B2Card = ({ l, seller = "owner" }) => {
 };
 
 export const B2MapRow = ({ l, active, seller = "agent" }) => {
-  const s = sellerBadge[seller];
+  const kind = l.seller_kind || seller;
+  const s = sellerBadge[kind] || sellerBadge.agent;
   return (
     <article
       style={{
@@ -130,7 +155,7 @@ export const B2MapRow = ({ l, active, seller = "agent" }) => {
       }}
     >
       <div style={{ position: "relative" }}>
-        <PropPhoto seed={l.seed} style={{ aspectRatio: "4/3", borderRadius: 14 }} />
+        <Photo listing={l} style={{ aspectRatio: "4/3", borderRadius: 14 }} />
         <button
           style={{
             position: "absolute",
@@ -146,24 +171,6 @@ export const B2MapRow = ({ l, active, seller = "agent" }) => {
         >
           <Icon name="heart" size={13} />
         </button>
-        <div
-          style={{
-            position: "absolute",
-            bottom: 10,
-            left: 10,
-            background: "rgba(23,24,27,.7)",
-            color: "#fff",
-            padding: "3px 8px",
-            borderRadius: 999,
-            fontSize: 11,
-            fontFamily: "var(--b-mono)",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <Icon name="camera" size={11} /> {8 + (l.id * 3) % 16}
-        </div>
       </div>
       <div style={{ padding: "8px 12px 8px 0", display: "flex", flexDirection: "column" }}>
         <div
@@ -210,7 +217,7 @@ export const B2MapRow = ({ l, active, seller = "agent" }) => {
             <Icon name="bed" size={12} style={{ verticalAlign: -2, marginRight: 4 }} />
             {l.disp}
           </span>
-          <span style={{ color: "var(--b-muted)" }}>· cihla, 3. patro</span>
+          {l.condition_note && <span style={{ color: "var(--b-muted)" }}>· {l.condition_note}</span>}
         </div>
         <div
           style={{
@@ -234,16 +241,18 @@ export const B2MapRow = ({ l, active, seller = "agent" }) => {
             >
               {l.price}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--b-muted)",
-                fontFamily: "var(--b-mono)",
-                marginTop: 3,
-              }}
-            >
-              {fmt(Math.round(parseInt(l.price.replace(/\D/g, "")) / l.area))} Kč/m²
-            </div>
+            {l.area && l.rawPrice && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--b-muted)",
+                  fontFamily: "var(--b-mono)",
+                  marginTop: 3,
+                }}
+              >
+                {fmt(Math.round(l.rawPrice / l.area))} Kč/m²
+              </div>
+            )}
           </div>
           <Link
             href={`/inzerat/${l.id}`}

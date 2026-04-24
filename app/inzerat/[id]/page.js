@@ -2,19 +2,46 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BHeader } from "@/components/header";
 import { BFooter } from "@/components/footer";
+import LeafletMap from "@/components/leaflet-map";
 import { Icon, PropPhoto, bPage, sellerBadge } from "@/components/shared";
-import { supabase, mapRowToListing, formatPriceCZK } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
+import { mapRowToListing, formatPriceCZK } from "@/lib/supabase/shared";
 
 export const revalidate = 30;
 
 async function getProperty(id) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("properties")
-    .select("*")
+    .select("*, property_images(url, position)")
     .eq("id", id)
     .maybeSingle();
   if (error || !data) return null;
-  return { row: data, listing: mapRowToListing(data) };
+  const images = (data.property_images || [])
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .map((i) => i.url);
+  return { row: data, listing: mapRowToListing(data), images };
+}
+
+function GalleryImage({ src, fallbackSeed, style, children }) {
+  if (src) {
+    return (
+      <div style={{ position: "relative", ...style }}>
+        <img
+          src={src}
+          alt=""
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div style={{ position: "relative", ...style }}>
+      <PropPhoto seed={fallbackSeed} style={{ height: "100%" }} />
+      {children}
+    </div>
+  );
 }
 
 export default async function DetailPage({ params, searchParams }) {
@@ -24,23 +51,25 @@ export default async function DetailPage({ params, searchParams }) {
 
   const result = await getProperty(id);
   if (!result) notFound();
-  const { row, listing } = result;
+  const { row, listing, images } = result;
 
   const badge = sellerBadge[row.seller_kind] || sellerBadge.owner;
   const pricePerM2 = row.price && row.area ? Math.round(row.price / row.area) : null;
+
+  const galleryImages = images.length > 0
+    ? images
+    : row.main_image_url
+    ? [row.main_image_url]
+    : [];
+
+  const hasCoords = row.latitude != null && row.longitude != null;
 
   return (
     <div className="ab v-b" style={bPage}>
       <BHeader />
 
       {justCreated && (
-        <div
-          style={{
-            maxWidth: 1280,
-            margin: "20px auto 0",
-            padding: "0 32px",
-          }}
-        >
+        <div style={{ maxWidth: 1280, margin: "20px auto 0", padding: "0 32px" }}>
           <div
             style={{
               padding: "14px 20px",
@@ -80,29 +109,42 @@ export default async function DetailPage({ params, searchParams }) {
             height: 520,
           }}
         >
-          <PropPhoto seed={listing.seed} style={{ height: "100%" }} />
+          <GalleryImage
+            src={galleryImages[0]}
+            fallbackSeed={listing.seed}
+            style={{ height: "100%" }}
+          />
           <div style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: 8 }}>
-            <PropPhoto seed={(listing.seed + 1) % 10} />
-            <div style={{ position: "relative" }}>
-              <PropPhoto seed={(listing.seed + 2) % 10} style={{ height: "100%" }} />
-              <button
-                style={{
-                  position: "absolute",
-                  inset: 8,
-                  background: "rgba(23,24,27,.7)",
-                  color: "#fff",
-                  borderRadius: 14,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
-              >
-                <Icon name="camera" size={15} /> Galerie fotek
-              </button>
-            </div>
+            <GalleryImage
+              src={galleryImages[1]}
+              fallbackSeed={(listing.seed + 1) % 10}
+              style={{ height: "100%" }}
+            />
+            <GalleryImage
+              src={galleryImages[2]}
+              fallbackSeed={(listing.seed + 2) % 10}
+              style={{ height: "100%" }}
+            >
+              {galleryImages.length > 3 && (
+                <button
+                  style={{
+                    position: "absolute",
+                    inset: 8,
+                    background: "rgba(23,24,27,.6)",
+                    color: "#fff",
+                    borderRadius: 14,
+                    fontSize: 14,
+                    fontWeight: 500,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Icon name="camera" size={15} /> + {galleryImages.length - 3} dalších fotek
+                </button>
+              )}
+            </GalleryImage>
           </div>
         </div>
       </div>
@@ -167,7 +209,12 @@ export default async function DetailPage({ params, searchParams }) {
             {[
               { l: "Plocha", v: `${row.area} m²` },
               { l: "Dispozice", v: row.disposition || "—" },
-              row.floor ? { l: "Patro", v: `${row.floor}${row.total_floors ? ` / ${row.total_floors}` : ""}.` } : null,
+              row.floor
+                ? {
+                    l: "Patro",
+                    v: `${row.floor}${row.total_floors ? ` / ${row.total_floors}` : ""}.`,
+                  }
+                : null,
               row.condition_note ? { l: "Stav", v: row.condition_note } : null,
               row.energy_class ? { l: "Energie", v: row.energy_class } : null,
             ]
@@ -199,32 +246,78 @@ export default async function DetailPage({ params, searchParams }) {
             </div>
           )}
 
-          <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-            {[
-              row.has_balcony && "Balkon",
-              row.has_garden && "Zahrada",
-              row.has_parking && "Parkování",
-              row.has_elevator && "Výtah",
-              row.energy_class && `Energie ${row.energy_class}`,
-              row.condition_note,
-            ]
-              .filter(Boolean)
-              .map((f) => (
-                <div
-                  key={f}
-                  style={{
-                    padding: "14px 16px",
-                    background: "#fff",
-                    borderRadius: 12,
-                    border: "1px solid var(--b-line)",
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
-                >
-                  {f}
-                </div>
-              ))}
-          </div>
+          {[
+            row.has_balcony && "Balkon",
+            row.has_garden && "Zahrada",
+            row.has_parking && "Parkování",
+            row.has_elevator && "Výtah",
+            row.energy_class && `Energie ${row.energy_class}`,
+          ].filter(Boolean).length > 0 && (
+            <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              {[
+                row.has_balcony && "Balkon",
+                row.has_garden && "Zahrada",
+                row.has_parking && "Parkování",
+                row.has_elevator && "Výtah",
+                row.energy_class && `Energie ${row.energy_class}`,
+                row.condition_note,
+              ]
+                .filter(Boolean)
+                .map((f) => (
+                  <div
+                    key={f}
+                    style={{
+                      padding: "14px 16px",
+                      background: "#fff",
+                      borderRadius: 12,
+                      border: "1px solid var(--b-line)",
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {f}
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Map */}
+          {hasCoords && (
+            <div style={{ marginTop: 48 }}>
+              <h2
+                style={{
+                  fontFamily: "var(--b-display)",
+                  fontSize: 28,
+                  fontWeight: 400,
+                  margin: "0 0 16px",
+                  letterSpacing: -0.5,
+                }}
+              >
+                Lokalita
+              </h2>
+              <LeafletMap
+                markers={[
+                  {
+                    id: row.id,
+                    title: listing.title,
+                    place: listing.place,
+                    price: listing.price,
+                    rawPrice: row.price,
+                    latitude: row.latitude,
+                    longitude: row.longitude,
+                    active: true,
+                  },
+                ]}
+                center={[row.latitude, row.longitude]}
+                zoom={14}
+                height={440}
+                singleActive
+              />
+              <div style={{ fontSize: 12, color: "var(--b-muted)", marginTop: 8 }}>
+                Přesná poloha je přibližná — pro ochranu soukromí zobrazujeme jen orientační místo.
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Contact card */}

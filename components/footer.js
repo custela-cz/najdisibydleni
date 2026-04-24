@@ -1,6 +1,4 @@
-"use client";
-
-import { B2Logo } from "./header";
+import { B2Logo } from "./logo";
 
 export const B2Footer = () => (
   <footer
