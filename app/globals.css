@@ -1,0 +1,67 @@
+/* === Najdisibydleni.cz — Design tokens === */
+/* Moderní / Premium varianta */
+
+:root {
+  --b-display: "Libre Caslon Text", "Source Serif 4", Georgia, serif;
+  --b-font: "Work Sans", "Inter", system-ui, sans-serif;
+  --b-mono: "JetBrains Mono", ui-monospace, monospace;
+  --b-display-var: normal;
+}
+
+.v-b {
+  --b-bg: #FAF8F4;
+  --b-surface: #FFFFFF;
+  --b-ink: #17181B;
+  --b-ink-2: #3B3D42;
+  --b-muted: #76787D;
+  --b-line: #E7E3DB;
+  --b-line-2: #F1EDE5;
+  --b-primary: #1F4336;
+  --b-primary-dark: #132A22;
+  --b-primary-soft: #E5EAE5;
+  --b-accent: #C9774A;
+  --b-accent-soft: #F5E5D9;
+  --b-cream: #EFE8DA;
+  --b-radius: 14px;
+  --b-radius-lg: 20px;
+  --b-radius-pill: 999px;
+  --b-shadow-sm: 0 1px 2px rgba(23,24,27,.04);
+  --b-shadow: 0 8px 24px -8px rgba(23,24,27,.15), 0 2px 6px rgba(23,24,27,.04);
+}
+
+html, body { margin: 0; padding: 0; }
+body {
+  background: #FAF8F4;
+  font-family: "Work Sans", system-ui, sans-serif;
+  color: #17181B;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ab * { box-sizing: border-box; }
+.ab { font-feature-settings: "ss01", "cv11"; -webkit-font-smoothing: antialiased; }
+.ab img { display: block; max-width: 100%; }
+.ab button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+.ab a { color: inherit; text-decoration: none; cursor: pointer; }
+.ab input, .ab textarea, .ab select { font: inherit; color: inherit; }
+
+.ph {
+  background:
+    linear-gradient(135deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,0) 50%),
+    linear-gradient(45deg, var(--ph-a, #C9D5E2), var(--ph-b, #95A9BE));
+  position: relative;
+  overflow: hidden;
+}
+.ph::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.25) 0, transparent 40%),
+    radial-gradient(circle at 70% 70%, rgba(0,0,0,.1) 0, transparent 50%);
+}
+.ph-house::before {
+  content: "";
+  position: absolute;
+  left: 15%; right: 15%; bottom: 18%; height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,.15), rgba(0,0,0,.05));
+  clip-path: polygon(0 40%, 50% 0, 100% 40%, 100% 100%, 0 100%);
+}
