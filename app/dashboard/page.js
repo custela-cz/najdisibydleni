@@ -1,9 +1,37 @@
-"use client";
-
+import Link from "next/link";
 import { BHeader } from "@/components/header";
-import { Icon, PropPhoto, LISTINGS, bPage } from "@/components/shared";
+import { Icon, PropPhoto, bPage } from "@/components/shared";
+import { supabase, mapRowToListing } from "@/lib/supabase";
 
-export default function DashboardPage() {
+export const revalidate = 30;
+
+async function fetchOverview() {
+  const [all, recent] = await Promise.all([
+    supabase.from("properties").select("id,offer_type,property_type,price", { count: "exact" }).eq("status", "aktivni"),
+    supabase.from("properties").select("*").order("created_at", { ascending: false }).limit(6),
+  ]);
+  const active = all.count ?? 0;
+  const rows = recent.data || [];
+  const forSale = (all.data || []).filter((r) => r.offer_type === "prodej").length;
+  const forRent = (all.data || []).filter((r) => r.offer_type === "pronajem").length;
+  const avgPrice = (() => {
+    const sale = (all.data || []).filter((r) => r.offer_type === "prodej");
+    if (sale.length === 0) return null;
+    const sum = sale.reduce((s, r) => s + (r.price || 0), 0);
+    return Math.round(sum / sale.length);
+  })();
+  return {
+    active,
+    forSale,
+    forRent,
+    avgPrice,
+    recent: rows.map(mapRowToListing),
+  };
+}
+
+export default async function DashboardPage() {
+  const { active, forSale, forRent, avgPrice, recent } = await fetchOverview();
+
   return (
     <div className="ab v-b" style={bPage}>
       <BHeader />
@@ -11,9 +39,10 @@ export default function DashboardPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
+            gridTemplateColumns: "1fr auto",
             gap: 16,
             marginBottom: 32,
+            alignItems: "flex-end",
           }}
         >
           <div>
@@ -26,7 +55,7 @@ export default function DashboardPage() {
                 fontWeight: 600,
               }}
             >
-              Dobré ráno
+              Přehled portálu
             </div>
             <h1
               style={{
@@ -37,40 +66,25 @@ export default function DashboardPage() {
                 letterSpacing: -0.5,
               }}
             >
-              Kateřino, máte{" "}
-              <em style={{ color: "var(--b-accent)", fontStyle: "italic" }}>5 nových zpráv.</em>
+              Aktuálně <em style={{ color: "var(--b-accent)", fontStyle: "italic" }}>{active} inzerátů</em> v&nbsp;databázi.
             </h1>
           </div>
-          <div />
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "flex-start" }}>
-            <button
-              style={{
-                padding: "12px 20px",
-                background: "#fff",
-                border: "1px solid var(--b-line)",
-                borderRadius: 999,
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              Můj profil
-            </button>
-            <button
-              style={{
-                padding: "12px 20px",
-                background: "var(--b-ink)",
-                color: "#fff",
-                borderRadius: 999,
-                fontSize: 14,
-                fontWeight: 500,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Icon name="plus" size={14} /> Nový inzerát
-            </button>
-          </div>
+          <Link
+            href="/vlozit"
+            style={{
+              padding: "12px 20px",
+              background: "var(--b-ink)",
+              color: "#fff",
+              borderRadius: 999,
+              fontSize: 14,
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Icon name="plus" size={14} /> Nový inzerát
+          </Link>
         </div>
 
         {/* Stats row */}
@@ -84,10 +98,15 @@ export default function DashboardPage() {
           }}
         >
           {[
-            { v: "3", l: "aktivních inzerátů" },
-            { v: "2 847", l: "zobrazení / týden", d: "+18 %" },
-            { v: "94", l: "uložení u kupců" },
-            { v: "12 min", l: "průměrný čas strávený", d: "↑" },
+            { v: String(active), l: "aktivních inzerátů" },
+            { v: String(forSale), l: "k prodeji" },
+            { v: String(forRent), l: "k pronájmu" },
+            {
+              v: avgPrice
+                ? `${(avgPrice / 1_000_000).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} mil.`
+                : "—",
+              l: "průměrná cena prodeje",
+            },
           ].map((s) => (
             <div key={s.l}>
               <div
@@ -101,14 +120,12 @@ export default function DashboardPage() {
               >
                 {s.v}
               </div>
-              <div style={{ fontSize: 13, color: "var(--b-muted)", marginTop: 6 }}>
-                {s.l} {s.d && <span style={{ color: "var(--b-accent)" }}>{s.d}</span>}
-              </div>
+              <div style={{ fontSize: 13, color: "var(--b-muted)", marginTop: 6 }}>{s.l}</div>
             </div>
           ))}
         </div>
 
-        {/* Listings */}
+        {/* Recent listings */}
         <div style={{ marginTop: 40 }}>
           <h2
             style={{
@@ -118,79 +135,81 @@ export default function DashboardPage() {
               margin: "0 0 20px",
             }}
           >
-            Vaše inzeráty
+            Nedávno přidané inzeráty
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-            {LISTINGS.slice(0, 3).map((l) => (
-              <div
-                key={l.id}
-                style={{
-                  background: "#fff",
-                  borderRadius: 20,
-                  overflow: "hidden",
-                  border: "1px solid var(--b-line)",
-                }}
-              >
-                <div style={{ padding: 8 }}>
-                  <PropPhoto seed={l.seed} style={{ aspectRatio: "16/10", borderRadius: 14 }} />
-                </div>
-                <div style={{ padding: "4px 20px 20px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 12,
-                      color: "var(--b-accent)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--b-accent)" }} />
-                    Aktivní · publikováno před 5 dny
+          {recent.length === 0 ? (
+            <div
+              style={{
+                padding: 32,
+                background: "#fff",
+                borderRadius: 16,
+                border: "1px dashed var(--b-line)",
+                textAlign: "center",
+                color: "var(--b-muted)",
+              }}
+            >
+              Zatím žádné inzeráty.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+              {recent.map((l) => (
+                <Link
+                  key={l.id}
+                  href={`/inzerat/${l.id}`}
+                  style={{
+                    background: "#fff",
+                    borderRadius: 20,
+                    overflow: "hidden",
+                    border: "1px solid var(--b-line)",
+                    display: "block",
+                  }}
+                >
+                  <div style={{ padding: 8 }}>
+                    <PropPhoto seed={l.seed} style={{ aspectRatio: "16/10", borderRadius: 14 }} />
                   </div>
-                  <h3
-                    style={{
-                      fontFamily: "var(--b-display)",
-                      fontSize: 20,
-                      fontWeight: 500,
-                      margin: "8px 0 4px",
-                    }}
-                  >
-                    {l.title}
-                  </h3>
-                  <div style={{ fontSize: 13, color: "var(--b-muted)" }}>{l.place}</div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginTop: 16,
-                      fontSize: 12,
-                      color: "var(--b-ink-2)",
-                    }}
-                  >
-                    <span>
-                      <strong style={{ fontSize: 18, fontFamily: "var(--b-display)", fontWeight: 500 }}>
-                        {420 + l.id * 180}
-                      </strong>{" "}
-                      zobrazení
-                    </span>
-                    <span>
-                      <strong style={{ fontSize: 18, fontFamily: "var(--b-display)", fontWeight: 500 }}>
-                        {8 + l.id * 3}
-                      </strong>{" "}
-                      zpráv
-                    </span>
-                    <span>
-                      <strong style={{ fontSize: 18, fontFamily: "var(--b-display)", fontWeight: 500 }}>
-                        {18 + l.id * 4}
-                      </strong>{" "}
-                      ♥
-                    </span>
+                  <div style={{ padding: "4px 20px 20px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 12,
+                        color: "var(--b-accent)",
+                        fontWeight: 500,
+                      }}
+                    >
+                      <span
+                        style={{ width: 8, height: 8, borderRadius: 999, background: "var(--b-accent)" }}
+                      />
+                      Aktivní
+                    </div>
+                    <h3
+                      style={{
+                        fontFamily: "var(--b-display)",
+                        fontSize: 20,
+                        fontWeight: 500,
+                        margin: "8px 0 4px",
+                      }}
+                    >
+                      {l.title}
+                    </h3>
+                    <div style={{ fontSize: 13, color: "var(--b-muted)" }}>{l.place}</div>
+                    <div
+                      style={{
+                        marginTop: 12,
+                        fontFamily: "var(--b-display)",
+                        fontSize: 20,
+                        fontWeight: 500,
+                        color: "var(--b-primary)",
+                      }}
+                    >
+                      {l.price}
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

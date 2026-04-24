@@ -1,20 +1,65 @@
-"use client";
-
 import Link from "next/link";
-import { use } from "react";
+import { notFound } from "next/navigation";
 import { BHeader } from "@/components/header";
 import { BFooter } from "@/components/footer";
-import { Icon, PropPhoto, LISTINGS, bPage } from "@/components/shared";
+import { Icon, PropPhoto, bPage, sellerBadge } from "@/components/shared";
+import { supabase, mapRowToListing, formatPriceCZK } from "@/lib/supabase";
 
-export default function DetailPage({ params }) {
-  const { id } = use(params);
-  const listing = LISTINGS.find((x) => String(x.id) === String(id)) || LISTINGS[1];
+export const revalidate = 30;
+
+async function getProperty(id) {
+  const { data, error } = await supabase
+    .from("properties")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { row: data, listing: mapRowToListing(data) };
+}
+
+export default async function DetailPage({ params, searchParams }) {
+  const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const justCreated = sp.nove === "1";
+
+  const result = await getProperty(id);
+  if (!result) notFound();
+  const { row, listing } = result;
+
+  const badge = sellerBadge[row.seller_kind] || sellerBadge.owner;
+  const pricePerM2 = row.price && row.area ? Math.round(row.price / row.area) : null;
 
   return (
     <div className="ab v-b" style={bPage}>
       <BHeader />
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 32px 0" }}>
+      {justCreated && (
+        <div
+          style={{
+            maxWidth: 1280,
+            margin: "20px auto 0",
+            padding: "0 32px",
+          }}
+        >
+          <div
+            style={{
+              padding: "14px 20px",
+              background: "var(--b-primary-soft)",
+              borderRadius: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              color: "var(--b-primary)",
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            <Icon name="check" size={18} /> Inzerát byl úspěšně publikován.
+          </div>
+        </div>
+      )}
+
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 32px 0" }}>
         <Link
           href="/koupit"
           style={{ fontSize: 13, color: "var(--b-muted)", display: "flex", alignItems: "center", gap: 6 }}
@@ -37,9 +82,9 @@ export default function DetailPage({ params }) {
         >
           <PropPhoto seed={listing.seed} style={{ height: "100%" }} />
           <div style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: 8 }}>
-            <PropPhoto seed={listing.seed + 1} />
+            <PropPhoto seed={(listing.seed + 1) % 10} />
             <div style={{ position: "relative" }}>
-              <PropPhoto seed={listing.seed + 2} style={{ height: "100%" }} />
+              <PropPhoto seed={(listing.seed + 2) % 10} style={{ height: "100%" }} />
               <button
                 style={{
                   position: "absolute",
@@ -55,7 +100,7 @@ export default function DetailPage({ params }) {
                   gap: 8,
                 }}
               >
-                <Icon name="camera" size={15} /> Zobrazit všech 28 fotek
+                <Icon name="camera" size={15} /> Galerie fotek
               </button>
             </div>
           </div>
@@ -74,6 +119,26 @@ export default function DetailPage({ params }) {
         }}
       >
         <div>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "4px 12px",
+              background: badge.bg,
+              color: badge.c,
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: "var(--b-mono)",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: 12,
+            }}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: 999, background: badge.c }} />
+            {badge.l}
+          </div>
           <div style={{ fontSize: 13, color: "var(--b-muted)", display: "flex", alignItems: "center", gap: 6 }}>
             <Icon name="pin" size={13} /> {listing.place}
           </div>
@@ -96,58 +161,69 @@ export default function DetailPage({ params }) {
               marginTop: 28,
               paddingTop: 28,
               borderTop: "1px solid var(--b-line-2)",
+              flexWrap: "wrap",
             }}
           >
             {[
-              { l: "Plocha", v: `${listing.area} m²` },
-              { l: "Pokojů", v: listing.disp },
-              { l: "Pozemek", v: "620 m²" },
-              { l: "Rok", v: "2014" },
-              { l: "Energie", v: "B" },
-            ].map((s) => (
-              <div key={s.l}>
-                <div style={{ fontFamily: "var(--b-display)", fontSize: 28, fontWeight: 500 }}>{s.v}</div>
-                <div style={{ fontSize: 12, color: "var(--b-muted)", marginTop: 2 }}>{s.l}</div>
-              </div>
-            ))}
+              { l: "Plocha", v: `${row.area} m²` },
+              { l: "Dispozice", v: row.disposition || "—" },
+              row.floor ? { l: "Patro", v: `${row.floor}${row.total_floors ? ` / ${row.total_floors}` : ""}.` } : null,
+              row.condition_note ? { l: "Stav", v: row.condition_note } : null,
+              row.energy_class ? { l: "Energie", v: row.energy_class } : null,
+            ]
+              .filter(Boolean)
+              .map((s) => (
+                <div key={s.l}>
+                  <div style={{ fontFamily: "var(--b-display)", fontSize: 26, fontWeight: 500 }}>{s.v}</div>
+                  <div style={{ fontSize: 12, color: "var(--b-muted)", marginTop: 2 }}>{s.l}</div>
+                </div>
+              ))}
           </div>
 
-          <div style={{ marginTop: 40 }}>
-            <h2
-              style={{
-                fontFamily: "var(--b-display)",
-                fontSize: 28,
-                fontWeight: 400,
-                margin: "0 0 12px",
-                letterSpacing: -0.5,
-              }}
-            >
-              O této nemovitosti
-            </h2>
-            <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--b-ink-2)" }}>
-              {listing.title} v lokalitě {listing.place}. Prosluněný interiér, kvalitní dispozice a velmi dobrá občanská vybavenost. {listing.meta}.
-            </p>
-            <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--b-ink-2)" }}>
-              Trvalé vytápění plynem, podlahové topení v přízemí. Kompletní technický stav je doložen revizemi a energetickým štítkem.
-            </p>
-          </div>
-
-          <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-            {["Zahrada", "Krb", "Podlahovka", "Garáž", "Sklep", "Terasa", "Sauna", "Fotovoltaika"].map((f) => (
-              <div
-                key={f}
+          {row.description && (
+            <div style={{ marginTop: 40 }}>
+              <h2
                 style={{
-                  padding: "14px 16px",
-                  background: "#fff",
-                  borderRadius: 12,
-                  border: "1px solid var(--b-line)",
-                  fontSize: 13,
-                  fontWeight: 500,
+                  fontFamily: "var(--b-display)",
+                  fontSize: 28,
+                  fontWeight: 400,
+                  margin: "0 0 12px",
+                  letterSpacing: -0.5,
                 }}
               >
-                {f}
-              </div>
-            ))}
+                O této nemovitosti
+              </h2>
+              <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--b-ink-2)", whiteSpace: "pre-wrap" }}>
+                {row.description}
+              </p>
+            </div>
+          )}
+
+          <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            {[
+              row.has_balcony && "Balkon",
+              row.has_garden && "Zahrada",
+              row.has_parking && "Parkování",
+              row.has_elevator && "Výtah",
+              row.energy_class && `Energie ${row.energy_class}`,
+              row.condition_note,
+            ]
+              .filter(Boolean)
+              .map((f) => (
+                <div
+                  key={f}
+                  style={{
+                    padding: "14px 16px",
+                    background: "#fff",
+                    borderRadius: 12,
+                    border: "1px solid var(--b-line)",
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  {f}
+                </div>
+              ))}
           </div>
         </div>
 
@@ -171,73 +247,92 @@ export default function DetailPage({ params }) {
                 fontWeight: 400,
                 color: "var(--b-primary)",
                 letterSpacing: -1,
+                lineHeight: 1.1,
               }}
             >
-              {listing.price}
+              {formatPriceCZK(row.price, row.offer_type)}
             </div>
-            <div style={{ fontSize: 13, color: "var(--b-muted)" }}>
-              {Math.round(parseInt(listing.price.replace(/\D/g, "")) / listing.area).toLocaleString("cs-CZ")} Kč/m² · ověřený makléř
-            </div>
+            {pricePerM2 && (
+              <div style={{ fontSize: 13, color: "var(--b-muted)" }}>
+                {pricePerM2.toLocaleString("cs-CZ")} Kč/m²
+              </div>
+            )}
 
-            <div
-              style={{
-                marginTop: 24,
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-                padding: "12px 0",
-                borderTop: "1px solid var(--b-line-2)",
-                borderBottom: "1px solid var(--b-line-2)",
-              }}
-            >
+            {row.seller_name && (
               <div
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 999,
-                  background: "var(--b-cream)",
-                  display: "grid",
-                  placeItems: "center",
-                  fontFamily: "var(--b-display)",
-                  fontSize: 18,
+                  marginTop: 24,
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                  padding: "16px 0",
+                  borderTop: "1px solid var(--b-line-2)",
+                  borderBottom: "1px solid var(--b-line-2)",
                 }}
               >
-                KT
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 999,
+                    background: "var(--b-cream)",
+                    display: "grid",
+                    placeItems: "center",
+                    fontFamily: "var(--b-display)",
+                    fontSize: 18,
+                  }}
+                >
+                  {row.seller_name.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 500 }}>{row.seller_name}</div>
+                  <div style={{ fontSize: 12, color: "var(--b-muted)" }}>{badge.l}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontWeight: 500 }}>Kateřina Trnková</div>
-                <div style={{ fontSize: 12, color: "var(--b-muted)" }}>Makléřka · Ověřená přes BankID</div>
-              </div>
-            </div>
+            )}
 
-            <button
-              style={{
-                marginTop: 20,
-                width: "100%",
-                padding: 14,
-                background: "var(--b-primary)",
-                color: "var(--b-cream)",
-                borderRadius: 999,
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              Napsat Kateřině
-            </button>
-            <button
-              style={{
-                marginTop: 10,
-                width: "100%",
-                padding: 14,
-                background: "#fff",
-                border: "1px solid var(--b-line)",
-                borderRadius: 999,
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              Rezervovat prohlídku
-            </button>
+            {row.seller_email && (
+              <a
+                href={`mailto:${row.seller_email}`}
+                style={{
+                  marginTop: 20,
+                  width: "100%",
+                  padding: 14,
+                  background: "var(--b-primary)",
+                  color: "var(--b-cream)",
+                  borderRadius: 999,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                Napsat e-mail
+              </a>
+            )}
+            {row.seller_phone && (
+              <a
+                href={`tel:${row.seller_phone.replace(/\s/g, "")}`}
+                style={{
+                  marginTop: 10,
+                  width: "100%",
+                  padding: 14,
+                  background: "#fff",
+                  border: "1px solid var(--b-line)",
+                  borderRadius: 999,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Icon name="phone" size={14} /> {row.seller_phone}
+              </a>
+            )}
           </div>
         </aside>
       </section>

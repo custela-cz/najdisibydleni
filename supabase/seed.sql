@@ -1,0 +1,15 @@
+-- Ukázková data pro Najdisibydleni.cz
+insert into public.properties
+  (title, description, offer_type, property_type, price, area, disposition, city, district, floor, total_floors, condition_note, energy_class, has_balcony, has_parking, seller_name, seller_kind, seed_index)
+values
+  ('Byt 3+kk s balkonem, Letná', 'Prosluněný byt po rekonstrukci v klidné části Letné. Dřevěné podlahy, velká lodžie s výhledem do zeleně.', 'prodej', 'byt', 8490000, 85, '3+kk', 'Praha', 'Praha 7 — Letná', 3, 5, 'Po rekonstrukci', 'B', true, false, 'Kateřina Trnková', 'owner', 1),
+  ('Rodinný dům se zahradou', 'Rodinný dům v klidné části Říčan, dvacet minut od centra Prahy. Jižní orientace, dvě patra, zahrada 620 m².', 'prodej', 'dum', 12900000, 160, '5+1', 'Říčany u Prahy', null, null, null, 'Velmi dobrý', 'B', false, true, 'RK Reality Praha', 'agent', 3),
+  ('Podkrovní byt v činžovním domě', 'Atypický podkrovní byt s trámovými stropy. Kompletní rekonstrukce v roce 2023.', 'prodej', 'byt', 5690000, 62, '2+kk', 'Brno', 'Brno — Veveří', 4, 4, 'Po rekonstrukci', 'C', false, false, 'Jan Novák', 'owner', 2),
+  ('Loft v cihlové továrně', 'Industriální loft v přestavěné továrně v Karlíně. Vysoké stropy, velkoformátová okna, historické cihly.', 'prodej', 'byt', 14200000, 112, '3+kk', 'Praha', 'Praha 8 — Karlín', 2, 4, 'Novostavba', 'A', true, true, 'Karlín Developers s.r.o.', 'dev', 6),
+  ('Chata u Slapské přehrady', 'Dřevěná chata 15 min od přehrady, pozemek 380 m² s přístupem k vodě po svépomocné cestě.', 'prodej', 'chata', 3450000, 60, '2+1', 'Slapy nad Vltavou', null, null, null, 'Dobrý', null, false, true, 'Pavel Dvořák', 'owner', 4),
+  ('Novostavba 2+kk s terasou', 'Nový developerský projekt na Smíchově. Terasa 14 m², garážové stání v ceně.', 'prodej', 'novostavba', 9100000, 58, '2+kk', 'Praha', 'Praha 5 — Smíchov', 3, 6, 'Novostavba', 'A', true, true, 'Smíchov Living', 'dev', 8),
+  ('Vila s bazénem v Modřanech', 'Reprezentativní vila na pozemku 1 200 m². Vlastní bazén, sauna, krytá terasa.', 'prodej', 'dum', 24500000, 280, '6+1', 'Praha', 'Praha 4 — Modřany', null, 2, 'Velmi dobrý', 'B', true, true, 'LuxReal', 'agent', 5),
+  ('Garsoniéra v centru', 'Malý byt v historické části Prahy 1. Ideální investice na krátkodobý pronájem.', 'prodej', 'byt', 4290000, 28, '1+kk', 'Praha', 'Praha 1 — Staré Město', 2, 5, 'Po rekonstrukci', 'D', false, false, 'Tomáš Svoboda', 'owner', 7),
+  ('Řadový dům s garáží', 'Řadový dům v klidné ulici v Nových Sadech. Garáž pro dvě auta, malá zahrada.', 'prodej', 'dum', 7800000, 140, '4+1', 'Olomouc', 'Olomouc — Nové Sady', null, 2, 'Dobrý', 'C', false, true, 'Marie Procházková', 'owner', 9),
+  ('Byt 2+1 k pronájmu, Vinohrady', 'Kompletně zařízený byt, pračka, myčka, klimatizace. Minimálně 12 měsíců.', 'pronajem', 'byt', 32000, 68, '2+1', 'Praha', 'Praha 2 — Vinohrady', 4, 5, 'Po rekonstrukci', 'B', true, false, 'Vinohrady Rent', 'agent', 0),
+  ('Studio 1+kk, Brno-Veveří', 'Malý zařízený byt pro 1 osobu, blízko univerzity. Včetně energií.', 'pronajem', 'byt', 14500, 32, '1+kk', 'Brno', 'Brno — Veveří', 2, 4, 'Velmi dobrý', 'C', false, false, 'Petr Horák', 'owner', 3);

@@ -43,11 +43,11 @@ export const B2Header = ({ active }) => (
       <nav style={{ display: "flex", gap: 28, fontSize: 14 }}>
         {[
           { k: "koupit", l: "Koupit", href: "/koupit" },
-          { k: "pronajmout", l: "Pronajmout", href: "/koupit" },
-          { k: "novostavby", l: "Novostavby", href: "/koupit" },
+          { k: "pronajmout", l: "Pronajmout", href: "/koupit?type=byt-najem" },
+          { k: "novostavby", l: "Novostavby", href: "/koupit?type=novostavba" },
           { k: "prodat", l: "Prodat", href: "/vlozit" },
           { k: "makleri", l: "Pro makléře", href: "/dashboard" },
-          { k: "magazin", l: "Magazín", href: "/" },
+          { k: "magazin", l: "Magazín", href: "/#magazin" },
         ].map((i) => (
           <Link
             key={i.k}
@@ -75,9 +75,6 @@ export const B2Header = ({ active }) => (
         ))}
       </nav>
       <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
-        <Link href="/prihlaseni" style={{ fontSize: 14, fontWeight: 500, color: "var(--b-ink-2)" }}>
-          Přihlásit
-        </Link>
         <Link
           href="/vlozit"
           style={{
@@ -132,10 +129,10 @@ export const BHeader = () => (
       <nav style={{ display: "flex", gap: 28, fontSize: 14 }}>
         {[
           { l: "Koupit", href: "/koupit" },
-          { l: "Pronajmout", href: "/koupit" },
+          { l: "Pronajmout", href: "/koupit?type=byt-najem" },
           { l: "Prodat", href: "/vlozit" },
-          { l: "Magazín", href: "/" },
-          { l: "Hypotéky", href: "/" },
+          { l: "Magazín", href: "/#magazin" },
+          { l: "Hypotéky", href: "/#magazin" },
         ].map((i) => (
           <Link key={i.l} href={i.href} style={{ color: "var(--b-ink-2)", fontWeight: 500 }}>
             {i.l}
@@ -143,9 +140,6 @@ export const BHeader = () => (
         ))}
       </nav>
       <div style={{ marginLeft: "auto", display: "flex", gap: 14, alignItems: "center" }}>
-        <Link href="/prihlaseni" style={{ fontSize: 14, fontWeight: 500, color: "var(--b-ink-2)" }}>
-          Přihlásit
-        </Link>
         <Link
           href="/vlozit"
           style={{

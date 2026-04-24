@@ -1,12 +1,32 @@
-"use client";
-
 import Link from "next/link";
 import { B2Header } from "@/components/header";
 import { B2Footer } from "@/components/footer";
-import { B2Card, B2SearchCell } from "@/components/cards";
-import { Icon, PropPhoto, LISTINGS, bPage } from "@/components/shared";
+import { B2Card } from "@/components/cards";
+import SearchBar from "@/components/search-bar";
+import { Icon, PropPhoto, bPage } from "@/components/shared";
+import { supabase, mapRowToListing } from "@/lib/supabase";
 
-export default function HomePage() {
+export const revalidate = 30;
+
+async function getLatest() {
+  const { data, error } = await supabase
+    .from("properties")
+    .select("*")
+    .eq("status", "aktivni")
+    .order("created_at", { ascending: false })
+    .limit(3);
+  if (error) {
+    console.error("supabase getLatest:", error.message);
+    return [];
+  }
+  return (data || []).map(mapRowToListing);
+}
+
+const SELLER_KIND_BADGE = { owner: "owner", agent: "agent", dev: "dev" };
+
+export default async function HomePage() {
+  const latest = await getLatest();
+
   return (
     <div className="ab v-b" style={bPage}>
       <B2Header />
@@ -46,9 +66,7 @@ export default function HomePage() {
               po celé ČR.
             </h1>
             <p style={{ fontSize: 17, lineHeight: 1.5, color: "var(--b-ink-2)", margin: "32px 0 0", maxWidth: 500 }}>
-              Soukromí prodejci, realitní makléři i developeři na jednom místě. Aktuálně{" "}
-              <strong style={{ color: "var(--b-ink)" }}>128&nbsp;400</strong> nabídek a{" "}
-              <strong style={{ color: "var(--b-ink)" }}>3&nbsp;840</strong> ověřených makléřů.
+              Soukromí prodejci, realitní makléři i developeři na jednom místě. Vložte inzerát zdarma bez registrace.
             </p>
           </div>
 
@@ -88,9 +106,11 @@ export default function HomePage() {
                   marginTop: 6,
                 }}
               >
-                Rodinný dům, Říčany
+                {latest[0]?.title || "Rodinný dům, Říčany"}
               </div>
-              <div style={{ fontSize: 13, color: "var(--b-muted)", marginTop: 2 }}>160 m² · 5+1 · zahrada 620 m²</div>
+              <div style={{ fontSize: 13, color: "var(--b-muted)", marginTop: 2 }}>
+                {latest[0] ? `${latest[0].area} m² · ${latest[0].disp}` : "160 m² · 5+1 · zahrada 620 m²"}
+              </div>
               <div
                 style={{
                   display: "flex",
@@ -110,10 +130,10 @@ export default function HomePage() {
                     color: "var(--b-primary)",
                   }}
                 >
-                  12,9 mil. Kč
+                  {latest[0]?.price || "12,9 mil. Kč"}
                 </div>
                 <Link
-                  href="/inzerat/2"
+                  href={latest[0] ? `/inzerat/${latest[0].id}` : "/koupit"}
                   style={{
                     width: 38,
                     height: 38,
@@ -132,57 +152,8 @@ export default function HomePage() {
         </div>
 
         {/* Search row */}
-        <div
-          style={{
-            marginTop: 64,
-            background: "#fff",
-            borderRadius: 24,
-            padding: 10,
-            boxShadow: "var(--b-shadow)",
-            border: "1px solid var(--b-line)",
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1.2fr 1fr 1fr auto",
-              alignItems: "center",
-            }}
-          >
-            <B2SearchCell label="Hledám" value="Byt ke koupi" />
-            <B2SearchCell label="Kde" value="Praha, Brno, PSČ…" muted />
-            <B2SearchCell label="Cena" value="do 10 mil. Kč" />
-            <B2SearchCell label="Dispozice" value="2+kk — 3+1" />
-            <Link
-              href="/koupit"
-              style={{
-                margin: 4,
-                background: "var(--b-primary)",
-                color: "var(--b-cream)",
-                padding: "0 32px",
-                height: 64,
-                borderRadius: 16,
-                fontSize: 15,
-                fontWeight: 500,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <Icon name="search" size={17} /> Hledat
-              <span
-                style={{
-                  fontFamily: "var(--b-mono)",
-                  fontSize: 11,
-                  padding: "2px 8px",
-                  background: "rgba(239,232,218,.2)",
-                  borderRadius: 999,
-                }}
-              >
-                2 840
-              </span>
-            </Link>
-          </div>
+        <div style={{ marginTop: 64 }}>
+          <SearchBar />
         </div>
 
         {/* Stats */}
@@ -227,16 +198,16 @@ export default function HomePage() {
       <section style={{ maxWidth: 1320, margin: "60px auto 0", padding: "0 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 14 }}>
           {[
-            { i: "building", l: "Byty", c: "24 180", seed: 0 },
-            { i: "home", l: "Rodinné domy", c: "8 420", seed: 1 },
-            { i: "tree", l: "Pozemky", c: "3 840", seed: 2 },
-            { i: "sun", l: "Chaty & chalupy", c: "2 160", seed: 3 },
-            { i: "building", l: "Novostavby", c: "1 420", seed: 5 },
-            { i: "wave", l: "Komerční", c: "680", seed: 6 },
+            { i: "building", l: "Byty", c: "byt", seed: 0 },
+            { i: "home", l: "Rodinné domy", c: "dum", seed: 1 },
+            { i: "tree", l: "Pozemky", c: "pozemek", seed: 2 },
+            { i: "sun", l: "Chaty & chalupy", c: "chata", seed: 3 },
+            { i: "building", l: "Novostavby", c: "novostavba", seed: 5 },
+            { i: "wave", l: "Komerční", c: "komercni", seed: 6 },
           ].map((c) => (
             <Link
               key={c.l}
-              href="/koupit"
+              href={`/koupit?ptype=${c.c}`}
               style={{
                 background: "#fff",
                 borderRadius: 18,
@@ -250,9 +221,6 @@ export default function HomePage() {
               <div style={{ padding: "14px 16px" }}>
                 <div style={{ fontFamily: "var(--b-display)", fontSize: 18, fontWeight: 400, letterSpacing: -0.3 }}>
                   {c.l}
-                </div>
-                <div style={{ fontSize: 12, color: "var(--b-muted)", fontFamily: "var(--b-mono)", marginTop: 2 }}>
-                  {c.c}
                 </div>
               </div>
             </Link>
@@ -298,30 +266,47 @@ export default function HomePage() {
               nabídky
             </h2>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            {["Vše", "Praha", "Brno", "Novostavby"].map((t, i) => (
-              <button
-                key={t}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 999,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  background: i === 0 ? "var(--b-ink)" : "transparent",
-                  color: i === 0 ? "#fff" : "var(--b-ink-2)",
-                  border: i === 0 ? "1px solid var(--b-ink)" : "1px solid var(--b-line)",
-                }}
-              >
-                {t}
-              </button>
+          <Link
+            href="/koupit"
+            style={{
+              padding: "10px 18px",
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 500,
+              background: "var(--b-ink)",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            Všechny nabídky <Icon name="arrow-right" size={13} />
+          </Link>
+        </div>
+        {latest.length > 0 ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+            {latest.map((l) => (
+              <B2Card key={l.id} l={l} seller={SELLER_KIND_BADGE[l.seller_kind] || "owner"} />
             ))}
           </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
-          {LISTINGS.slice(0, 3).map((l, i) => (
-            <B2Card key={l.id} l={l} seller={i === 0 ? "owner" : i === 1 ? "agent" : "dev"} />
-          ))}
-        </div>
+        ) : (
+          <div
+            style={{
+              padding: 36,
+              background: "#fff",
+              border: "1px dashed var(--b-line)",
+              borderRadius: 16,
+              textAlign: "center",
+              color: "var(--b-muted)",
+            }}
+          >
+            Zatím žádné nabídky — buďte první a{" "}
+            <Link href="/vlozit" style={{ color: "var(--b-accent)", fontWeight: 500 }}>
+              vložte inzerát
+            </Link>
+            .
+          </div>
+        )}
       </section>
 
       {/* Three audiences */}
@@ -359,6 +344,7 @@ export default function HomePage() {
               t: "Kupuji či pronajímám",
               d: "Mapové vyhledávání, uložená hledání, notifikace na nové nabídky a kompletní historie cen.",
               cta: "Začít hledat",
+              href: "/koupit",
               bg: "#fff",
               color: "var(--b-ink)",
             },
@@ -367,6 +353,7 @@ export default function HomePage() {
               t: "Prodávám soukromě",
               d: "Wizard s AI popisem, doporučená cena podle tržních dat, celý průběh online. Bez zbytečných kroků.",
               cta: "Vložit inzerát",
+              href: "/vlozit",
               bg: "var(--b-primary)",
               color: "var(--b-cream)",
             },
@@ -375,6 +362,7 @@ export default function HomePage() {
               t: "Jsem makléř či RK",
               d: "Profesionální účet, hromadný import, CRM integrace, analytika a topování. Férové ceny.",
               cta: "Profesionální účet",
+              href: "/dashboard",
               bg: "var(--b-accent)",
               color: "#fff",
             },
@@ -421,7 +409,8 @@ export default function HomePage() {
               <p style={{ fontSize: 14, lineHeight: 1.55, opacity: a.bg === "#fff" ? 0.7 : 0.9, margin: 0 }}>
                 {a.d}
               </p>
-              <button
+              <Link
+                href={a.href}
                 style={{
                   marginTop: 28,
                   alignSelf: "flex-start",
@@ -438,14 +427,17 @@ export default function HomePage() {
                 }}
               >
                 {a.cta} <Icon name="arrow-right" size={13} />
-              </button>
+              </Link>
             </div>
           ))}
         </div>
       </section>
 
       {/* Magazine editorial */}
-      <section style={{ maxWidth: 1320, margin: "96px auto 0", padding: "0 32px" }}>
+      <section
+        id="magazin"
+        style={{ maxWidth: 1320, margin: "96px auto 0", padding: "0 32px", scrollMarginTop: 96 }}
+      >
         <div
           style={{
             background: "var(--b-primary)",
@@ -489,22 +481,7 @@ export default function HomePage() {
               Praktický přehled toho, co prověřit u každé nemovitosti — od energetického štítku přes právní stav až po sousedství a infrastrukturu.
             </p>
             <div style={{ marginTop: 32, display: "flex", gap: 12, alignItems: "center" }}>
-              <button
-                style={{
-                  background: "var(--b-cream)",
-                  color: "var(--b-primary-dark)",
-                  padding: "13px 24px",
-                  borderRadius: 999,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                Číst článek <Icon name="arrow-right" size={14} />
-              </button>
-              <span style={{ fontSize: 12, opacity: 0.7, fontFamily: "var(--b-mono)" }}>12 min čtení</span>
+              <span style={{ fontSize: 12, opacity: 0.7, fontFamily: "var(--b-mono)" }}>připravujeme</span>
             </div>
           </div>
           <div style={{ position: "relative" }}>
