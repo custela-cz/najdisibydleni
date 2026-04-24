@@ -176,11 +176,6 @@ export default function SearchBar({ initial = {}, variant = "home" }) {
     };
   }, [open]);
 
-  useEffect(() => {
-    if (open === "where") {
-      setTimeout(() => whereInputRef.current?.focus(), 10);
-    }
-  }, [open]);
 
   const typeLabel = SEARCH_TYPES.find((x) => x.v === type)?.l || SEARCH_TYPES[0].l;
   const priceOptions = useMemo(() => PRICE_PANEL_BY_TYPE(type), [type]);
@@ -201,11 +196,29 @@ export default function SearchBar({ initial = {}, variant = "home" }) {
 
   const submit = () => {
     const params = new URLSearchParams();
-    params.set("type", type);
-    if (where) params.set("where", where);
     if (price) params.set("price", price);
     if (disp.length) params.set("disp", disp.join(","));
-    router.push(`/koupit?${params.toString()}`);
+    if (where) params.set("where", where);
+
+    let target = "/koupit";
+    if (type === "byt-najem" || type === "dum-najem") {
+      target = "/najem";
+      if (type === "dum-najem") params.set("ptype", "dum");
+    } else if (type === "novostavba") {
+      target = "/novostavby";
+    } else if (type === "byt-koupe") {
+      params.set("ptype", "byt");
+    } else if (type === "dum-koupe") {
+      params.set("ptype", "dum");
+    } else if (type === "pozemek-koupe") {
+      params.set("ptype", "pozemek");
+    } else if (type === "chata-koupe") {
+      params.set("ptype", "chata");
+    } else if (type === "komercni-koupe") {
+      params.set("ptype", "komercni");
+    }
+    const qs = params.toString();
+    router.push(qs ? `${target}?${qs}` : target);
   };
 
   const toggleDisp = (d) =>
@@ -268,25 +281,19 @@ export default function SearchBar({ initial = {}, variant = "home" }) {
 
         {/* Kde */}
         <Cell label="Kde">
-          <div
-            onClick={() => setOpen("where")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              marginTop: 4,
-              cursor: "text",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
             <input
               ref={whereInputRef}
-              value={open === "where" ? whereInput : where || whereInput}
+              value={whereInput}
+              onFocus={() => setOpen("where")}
               onChange={(e) => {
                 setWhereInput(e.target.value);
-                setOpen("where");
+                setWhere(e.target.value);
+                if (open !== "where") setOpen("where");
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
+                  e.preventDefault();
                   if (citySuggestions[0]) pickWhere(citySuggestions[0]);
                 }
               }}
@@ -300,12 +307,17 @@ export default function SearchBar({ initial = {}, variant = "home" }) {
                 padding: 0,
                 fontSize: 15,
                 fontWeight: 500,
-                color: where || whereInput ? "var(--b-ink)" : "var(--b-muted)",
+                color: whereInput ? "var(--b-ink)" : "var(--b-muted)",
                 fontFamily: "inherit",
               }}
             />
-            {(where || whereInput) ? (
-              <button onClick={clearWhere} style={{ color: "var(--b-muted)", padding: 0 }}>
+            {whereInput ? (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={clearWhere}
+                style={{ color: "var(--b-muted)", padding: 0 }}
+              >
                 <Icon name="x" size={14} />
               </button>
             ) : (
@@ -323,7 +335,10 @@ export default function SearchBar({ initial = {}, variant = "home" }) {
                 <div
                   key={c}
                   style={itemStyle(c === where)}
-                  onClick={() => pickWhere(c)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pickWhere(c);
+                  }}
                 >
                   <Icon name="pin" size={13} style={{ color: "var(--b-muted)" }} />
                   <span style={{ flex: 1 }}>{c}</span>

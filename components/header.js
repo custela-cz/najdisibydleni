@@ -84,8 +84,8 @@ export async function B2Header({ active }) {
         <nav style={{ display: "flex", gap: 28, fontSize: 14 }}>
           {[
             { k: "koupit", l: "Koupit", href: "/koupit" },
-            { k: "pronajmout", l: "Pronajmout", href: "/koupit?type=byt-najem" },
-            { k: "novostavby", l: "Novostavby", href: "/koupit?type=novostavba" },
+            { k: "pronajmout", l: "Pronajmout", href: "/najem" },
+            { k: "novostavby", l: "Novostavby", href: "/novostavby" },
             { k: "prodat", l: "Prodat", href: "/vlozit" },
             { k: "makleri", l: "Pro makléře", href: "/dashboard" },
             { k: "magazin", l: "Magazín", href: "/#magazin" },
@@ -174,7 +174,7 @@ export async function BHeader() {
         <nav style={{ display: "flex", gap: 28, fontSize: 14 }}>
           {[
             { l: "Koupit", href: "/koupit" },
-            { l: "Pronajmout", href: "/koupit?type=byt-najem" },
+            { l: "Pronajmout", href: "/najem" },
             { l: "Prodat", href: "/vlozit" },
             { l: "Magazín", href: "/#magazin" },
             { l: "Hypotéky", href: "/#magazin" },

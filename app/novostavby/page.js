@@ -5,15 +5,15 @@ import { bPage } from "@/components/shared";
 
 export const dynamic = "force-dynamic";
 
-export default function KoupitPage() {
+export default function NovostavbyPage() {
   return (
     <div className="ab v-b" style={bPage}>
-      <B2Header active="koupit" />
+      <B2Header active="novostavby" />
       <Suspense fallback={null}>
         <MapSearch
-          preset={{ offer: "prodej" }}
-          title="Nabídky k prodeji"
-          subtitle="Posouvejte mapou nebo zadejte lokalitu pro filtrování."
+          preset={{ offer: "prodej", ptype: "novostavba" }}
+          title="Novostavby"
+          subtitle="Nové developerské projekty — posouvejte mapou nebo zadejte lokalitu."
         />
       </Suspense>
     </div>
