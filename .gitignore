@@ -1,8 +1,19 @@
 node_modules/
 .next/
 out/
+
+# env
+.env.local
 .env*.local
+
 .DS_Store
 *.log
 .vercel
+
+# Supabase
 supabase/.temp/
+
+# Claude Code
+.claude/settings.local.json
+.claude/projects/
+.claude/scheduled_tasks.lock
